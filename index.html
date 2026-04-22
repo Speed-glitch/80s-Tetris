@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>NEON TETRIS</title>
@@ -272,7 +270,7 @@
   }
 
   /* FX canvas layers — stacked on top of game canvas */
-  #trailCanvas, #laserCanvas, #fxCanvas {
+  #laserCanvas, #fxCanvas {
     position: absolute;
     top: 0; left: 0;
     pointer-events: none;
@@ -477,7 +475,6 @@
   <div class="game-area">
     <div id="canvas-wrapper">
       <canvas id="gameCanvas"></canvas>
-      <canvas id="trailCanvas"></canvas>
       <canvas id="laserCanvas"></canvas>
       <canvas id="fxCanvas"></canvas>
     </div>
@@ -612,8 +609,6 @@ let hiScore = parseInt(localStorage.getItem('tetrisHi') || '0');
 // ════════════════════════════════════════════════════════
 const canvas     = document.getElementById('gameCanvas');
 const ctx        = canvas.getContext('2d');
-const trailCv    = document.getElementById('trailCanvas');
-const tctx       = trailCv.getContext('2d');
 const laserCv    = document.getElementById('laserCanvas');
 const lctx       = laserCv.getContext('2d');
 const fxCv       = document.getElementById('fxCanvas');
@@ -628,7 +623,7 @@ function sizeCanvas() {
   cellSize = Math.max(cellSize, 18);
 
   const w = COLS * cellSize, h = ROWS * cellSize;
-  [canvas, trailCv, laserCv, fxCv].forEach(c => { c.width = w; c.height = h; });
+  [canvas, laserCv, fxCv].forEach(c => { c.width = w; c.height = h; });
 }
 
 // ════════════════════════════════════════════════════════
@@ -707,8 +702,12 @@ function recordTrail() {
 
 function drawTrails() {
   tctx.clearRect(0, 0, trailCv.width, trailCv.height);
-  trailHistory.forEach((trail, i) => {
-    const alpha = (i / TRAIL_MAX) * 0.35;
+  // exclude the last entry — that's the current piece position
+  const visible = trailHistory.slice(0, -1);
+  const n = visible.length;
+  visible.forEach((trail, i) => {
+    // i=0 is oldest (furthest from piece), should be most faded
+    const alpha = ((i + 1) / (TRAIL_MAX + 1)) * 0.3;
     trail.cells.forEach(({x, y}) => {
       const px = x * cellSize, py = y * cellSize;
       tctx.globalAlpha = alpha;
@@ -724,6 +723,7 @@ function drawTrails() {
   });
   tctx.globalAlpha = 1;
 }
+
 
 // ════════════════════════════════════════════════════════
 //  DRAW
@@ -966,7 +966,6 @@ function lock() {
   fireShockwave(piece);
   requestAnimationFrame(animateFx);
 
-  trailHistory = [];
   clearLines();
 
   piece = nextPiece;
@@ -1021,9 +1020,7 @@ function drop() {
   if (!valid(piece, board, 0, 1)) {
     lock();
   } else {
-    recordTrail();
     piece.y++;
-    drawTrails();
   }
 }
 
@@ -1062,7 +1059,6 @@ function loop(ts) {
   if (!running || paused) return;
   if (ts - lastDrop > dropInterval) { drop(); lastDrop = ts; }
   draw();
-  drawTrails();
   animFrame = requestAnimationFrame(loop);
 }
 
@@ -1076,7 +1072,7 @@ function startGame() {
   score = 0; lines = 0; level = startLevel;
   dropInterval = getInterval(level);
   paused = false; gameOver = false; running = true;
-  lasers = []; shockwaves = []; trailHistory = [];
+  lasers = []; shockwaves = [];
   rainbowActive = false; rainbowRows = [];
 
   piece = newPiece();
